@@ -12,9 +12,9 @@
   import_tasks: tuning.yml
   tags: [platform, tuning]
 
-# - name: freeswitch installation
-#   import_tasks: freeswitch.yml
-#   tags: [platform, freeswitch]
+- name: freeswitch installation
+  import_tasks: freeswitch.yml
+  tags: [platform, freeswitch]
 
 - name: kamailio installation
   import_tasks: kamailio.yml

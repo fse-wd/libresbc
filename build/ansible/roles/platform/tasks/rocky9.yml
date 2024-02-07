@@ -93,6 +93,7 @@
       - libxml2-devel
       - libunistring-devel
       - hiredis-devel
+      - libpq-devel
     enablerepo: irontec/sngrep
     state: latest
 
