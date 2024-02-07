@@ -16,28 +16,6 @@
     content: 'machine freeswitch.signalwire.com login libresbc password {{ signalwire_pat_token }}'
   when: ansible_os_family == "Debian"
 
-- name: Create YUM Auth username for FreeSWITCH
-  copy:
-    dest: /etc/yum/vars/signalwireusername
-    owner: root
-    group: root
-    mode: '0644'
-    content: 'florian.seidner@world-direct.at'
-  when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
-
-- name: Create YUM Auth pwd for FreeSWITCH
-  copy:
-    dest: /etc/yum/vars/signalwiretoken
-    owner: root
-    group: root
-    mode: '0644'
-    content: '{{ signalwire_pat_token }}'
-  when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
-
-- name: Install FreeSWITCH repo
-  command: yum install -y https://fse-wd:{{ signalwire_pat_token }}@freeswitch.signalwire.com/repo/yum/centos-release/freeswitch-release-repo-0-1.noarch.rpm epel-release
-  when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
-
 - name: Add FreeSWITCH repo link
   lineinfile:
     path: /etc/apt/sources.list.d/freeswitch.list
@@ -54,43 +32,46 @@
   ignore_errors: yes
   when: ansible_os_family == "Debian"
 
-- name: Run the equivalent of "dnf update" as a separate step
-  dnf:
-    update_cache: yes
-  ignore_errors: yes
-  when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
-
-
 - name: Install the build dependencies for package freeswitch debian
   apt:
     pkg: freeswitch
     state: build-dep
   when: ansible_os_family == "Debian"
 
-- name: Install the build dependencies for package freeswitch Rocky
-  dnf:
-    pkg: spandsp3-devel
+- name: Git clone spandsp source code
+  git:
+    repo: https://github.com/freeswitch/spandsp.git
+    dest: /usr/local/src/spandsp
+    recursive: no
+    clone: yes
+    version: '0d2e6ac'
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
-- name: Download libks source code 
-  get_url:
-    url: https://github.com/signalwire/libks/archive/refs/tags/v2.0.3.tar.gz
-    dest: /usr/local/src/libks-2.0.3.tar.gz
-    # checksum: md5:371b3001bf0871bbf8666e1f1c2d5e1f
+- name: Git clone libks source code
+  git:
+    repo: https://github.com/signalwire/libks.git
+    dest: /usr/local/src/libks
+    recursive: no
+    clone: yes
+    version: 'v2.0.3'
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
-- name: Download sofia-sip source code 
-  get_url:
-    url: https://github.com/freeswitch/sofia-sip/archive/refs/tags/v1.13.17.tar.gz
-    dest: /usr/local/src/sofia-sip-1.13.17.tar.gz
-    # checksum: md5:371b3001bf0871bbf8666e1f1c2d5e1f
+- name: Git clone sofia-sip source code
+  git:
+    repo: https://github.com/freeswitch/sofia-sip.git
+    dest: /usr/local/src/sofia-sip
+    recursive: no
+    clone: yes
+    version: 'v1.13.17'
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
-- name: Download signalwire-c source code 
-  get_url:
-    url: https://github.com/signalwire/signalwire-c/archive/refs/tags/v2.0.0.tar.gz
-    dest: /usr/local/src/signalwire-c-2.0.0.tar.gz
-    # checksum: md5:371b3001bf0871bbf8666e1f1c2d5e1f
+- name: Git clone signalwire-c source code
+  git:
+    repo: https://github.com/signalwire/signalwire-c.git
+    dest: /usr/local/src/signalwire-c
+    recursive: no
+    clone: yes
+    version: 'v2.0.0'
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
 - name: Git clone freeswith source code
@@ -101,25 +82,6 @@
     clone: yes
     version: '{{libre_freeswitch_version}}'
 
-- name: Unarchive tar the freeswitch release
-  unarchive:
-    src: /usr/local/src/libks-2.0.3.tar.gz
-    dest: /usr/local/src
-    remote_src: yes
-
-- name: Unarchive tar the freeswitch release
-  unarchive:
-    src: /usr/local/src/sofia-sip-1.13.17.tar.gz
-    dest: /usr/local/src
-    remote_src: yes
-
-- name: Unarchive tar the freeswitch release
-  unarchive:
-    src: /usr/local/src/signalwire-c-2.0.0.tar.gz
-    dest: /usr/local/src
-    remote_src: yes
-
-
 - name: copy freeswitch module file
   copy:
     src: modules.conf
@@ -127,6 +89,13 @@
     owner: root
     group: root
     mode: 0644
+
+- name: remove Postgres from module file
+  shell: sed -i "s#databases/mod_pgsql##g" modules.conf
+  args:
+    executable: /bin/bash
+    chdir: /usr/local/src/freeswitch
+  when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
 - name: Install Extra FreeSWITCH packages for AMR
   apt:
@@ -147,7 +116,6 @@
       - vo-amrwbenc-devel
     state: latest
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
-
 
 - name: Install Extra FreeSWITCH packages for AMR (debug only)
   apt:
@@ -178,21 +146,28 @@
   shell: cmake . -DCMAKE_INSTALL_PREFIX=/usr -DWITH_LIBBACKTRACE=0 && make install
   args:
     executable: /bin/bash
-    chdir: /usr/local/src/libks-2.0.3
+    chdir: /usr/local/src/libks
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
 - name: build sofia-sip
   shell: ./bootstrap.sh && ./configure CFLAGS="-g -ggdb" --with-pic --with-glib=no --without-doxygen --disable-stun --prefix=/usr && make -j`nproc --all` && make install
   args:
     executable: /bin/bash
-    chdir: /usr/local/src/sofia-sip-1.13.17
+    chdir: /usr/local/src/sofia-sip
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
-- name: build libks
+- name: build spandsp
+  shell: ./bootstrap.sh && ./configure CFLAGS="-g -ggdb" --with-pic --prefix=/usr && make -j`nproc --all` && make install
+  args:
+    executable: /bin/bash
+    chdir: /usr/local/src/spandsp
+  when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
+
+- name: build signalwire-c
   shell: PKG_CONFIG_PATH=/usr/lib/pkgconfig cmake . -DCMAKE_INSTALL_PREFIX=/usr && make install
   args:
     executable: /bin/bash
-    chdir: /usr/local/src/signalwire-c-2.0.0
+    chdir: /usr/local/src/signalwire-c
   when: ansible_os_family == "Rocky" and ansible_distribution_major_version == "9"
 
 - name: build freeswitch
